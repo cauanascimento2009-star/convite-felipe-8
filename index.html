@@ -41,7 +41,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hid
 .screen.media{background:#000}
 .screen.media::before{content:"";position:absolute;inset:-30px;background:url(assets/capa.jpg) center/cover;
   filter:blur(20px) brightness(.55);transform:scale(1.1)}
-.screen.media img,.screen.media video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
+.screen.media img,.screen.media video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 
 #startBtn{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;cursor:pointer;z-index:5}
 .tapHint{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);z-index:4;pointer-events:none;
@@ -57,12 +57,25 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hid
 #replayBtn{left:12px;top:calc(env(safe-area-inset-top) + 12px)}
 #muteBtn{right:12px;top:calc(env(safe-area-inset-top) + 12px)}
 
+/* controle de volume (só no computador) */
+#volCtl{position:absolute;z-index:7;right:12px;top:12px;display:none;align-items:center;gap:8px;
+  background:rgba(10,20,50,.85);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 12px 6px 6px}
+#volCtl button{width:30px;height:30px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;
+  font-size:15px;line-height:1;cursor:pointer;display:grid;place-items:center}
+#volCtl button:hover{background:rgba(255,255,255,.25)}
+#volCtl input{width:96px;accent-color:#e3141d;cursor:pointer}
+@media (hover:hover) and (pointer:fine){
+  #volCtl{display:flex}
+  #muteBtn{display:none !important}
+}
+
 /* banner final */
-#banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;user-select:none;-webkit-user-drag:none}
+#banner img,#giftsScreen img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;user-select:none;-webkit-user-drag:none}
 .hot{position:absolute;display:block;border-radius:18px;cursor:pointer}
 .hot:focus-visible{outline:3px solid #fff}
 .hot::after{content:"";position:absolute;inset:0;border-radius:18px;background:#fff;opacity:0;transition:opacity .15s}
 .hot:active::after{opacity:.25}
+#giftsScreen.on .hot{animation:glow 2.2s ease-in-out infinite}
 #banner.on .hot{animation:glow 2.2s ease-in-out infinite}
 #banner.on .hot:nth-child(3){animation-delay:.3s}
 #banner.on .hot:nth-child(4){animation-delay:.6s}
@@ -86,7 +99,11 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hid
     <!-- 2) VIDEO -->
     <section id="videoScreen" class="screen media" aria-label="Vídeo convite">
       <video id="video" src="assets/video.mp4" poster="assets/capa.jpg" playsinline webkit-playsinline preload="auto"></video>
-      <button id="muteBtn" class="pill" type="button" style="display:none">🔊 Som</button>
+      <button id="muteBtn" class="pill" type="button" style="display:none">🔊 Ativar som</button>
+      <div id="volCtl" aria-label="Volume">
+        <button id="volMute" type="button" aria-label="Silenciar">🔊</button>
+        <input id="volRange" type="range" min="0" max="1" step="0.05" value="0.6" aria-label="Volume do vídeo">
+      </div>
       <button id="skipBtn" class="pill" type="button">Pular vídeo ⏭</button>
     </section>
 
@@ -97,11 +114,17 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hid
          style="left:18.9%;top:65.6%;width:63.8%;height:7.9%"></a>
       <a class="hot" id="lnkMap" target="_blank" rel="noopener" aria-label="Ver localização: Gammer One"
          style="left:18.9%;top:74.0%;width:64.0%;height:6.9%"></a>
-      <a class="hot" id="lnkGifts" target="_blank" rel="noopener" aria-label="Sugestões de presentes"
+      <a class="hot" id="lnkGifts" href="#presentes" aria-label="Sugestões de presentes"
          style="left:18.9%;top:82.0%;width:64.8%;height:7.8%"></a>
       <button id="replayBtn" class="pill" type="button">↺ Ver vídeo</button>
     </section>
 
+    <!-- 4) SUGESTÕES DE PRESENTES -->
+    <section id="giftsScreen" class="screen" aria-label="Sugestões de presentes">
+      <img src="assets/presentes.webp" alt="Sugestões de presentes: roupa tamanho 10, Robux, sapato tamanho 32, brinquedos" draggable="false">
+      <a class="hot" id="lnkBack" href="#" aria-label="Voltar"
+         style="left:21.3%;top:87.6%;width:57.4%;height:7.9%"></a>
+    </section>
 
   </div>
 </div>
@@ -116,42 +139,62 @@ const CONFIG = {
   mensagem: "Oi! Confirmo minha presença no aniversário de 8 anos do Felipe! 🎮🎉",
   // Link do Google Maps do local
   mapa: "https://maps.app.goo.gl/UF6WQX8x8mvrrFa79",
-  // Lista de sugestões de presentes
-  presentes: "https://lista.mercadolivre.com.br/brinquedos-hobbies/brinquedo-crianca-8-anos"
+  // Volume inicial do vídeo (0 a 1)
+  volume: 0.6
 };
 /* ========================================================= */
 
 const $ = id => document.getElementById(id);
-const screens = ["cover","videoScreen","banner"].map($);
+const screens = ["cover","videoScreen","banner","giftsScreen"].map($);
 const video = $("video");
 function show(id){ screens.forEach(s => s.classList.toggle("on", s.id === id)); }
 
 // links
 $("lnkConfirm").href = "https://wa.me/" + CONFIG.whatsapp + "?text=" + encodeURIComponent(CONFIG.mensagem);
 $("lnkMap").href = CONFIG.mapa;
-$("lnkGifts").href = CONFIG.presentes;
+
+// volume
+const volRange = $("volRange"), volMute = $("volMute");
+let vol = CONFIG.volume;
+function applyVol(){
+  try{ video.volume = vol; }catch(e){}
+  volRange.value = video.muted ? 0 : vol;
+  volMute.textContent = (video.muted || vol === 0) ? "🔇" : (vol < 0.5 ? "🔉" : "🔊");
+}
+volRange.addEventListener("input", () => {
+  vol = parseFloat(volRange.value); video.muted = vol === 0; applyVol();
+});
+volMute.addEventListener("click", () => {
+  if (video.muted || vol === 0){ video.muted = false; if (vol === 0) vol = CONFIG.volume; }
+  else video.muted = true;
+  applyVol();
+});
+video.addEventListener("volumechange", () => { volMute.textContent = (video.muted || vol === 0) ? "🔇" : (vol < 0.5 ? "🔉" : "🔊"); });
+applyVol();
 
 // fluxo
 function goBanner(){ try{ video.pause(); }catch(e){} $("skipBtn").style.display="none"; show("banner"); }
 
 $("startBtn").addEventListener("click", () => {
   show("videoScreen");
-  video.muted = false; video.currentTime = 0;
+  video.muted = false; video.currentTime = 0; applyVol();
   const p = video.play();
   if (p && p.catch) p.catch(() => {           // navegador bloqueou som: toca mudo
-    video.muted = true; $("muteBtn").style.display = "block"; video.play().catch(()=>{});
+    video.muted = true; applyVol(); $("muteBtn").style.display = "block"; video.play().catch(()=>{});
   });
   setTimeout(() => { if (!$("banner").classList.contains("on")) $("skipBtn").style.display = "block"; }, 4000);
 });
-$("muteBtn").addEventListener("click", () => { video.muted = false; $("muteBtn").style.display = "none"; });
+$("muteBtn").addEventListener("click", () => { video.muted = false; applyVol(); $("muteBtn").style.display = "none"; });
 video.addEventListener("ended", goBanner);
 video.addEventListener("error", goBanner);
 $("skipBtn").addEventListener("click", goBanner);
 $("replayBtn").addEventListener("click", () => {
-  show("videoScreen"); video.currentTime = 0; video.muted = false;
-  video.play().catch(()=>{ video.muted = true; $("muteBtn").style.display="block"; video.play().catch(()=>{}); });
+  show("videoScreen"); video.currentTime = 0; video.muted = false; applyVol();
+  video.play().catch(()=>{ video.muted = true; applyVol(); $("muteBtn").style.display="block"; video.play().catch(()=>{}); });
   setTimeout(() => { if ($("videoScreen").classList.contains("on")) $("skipBtn").style.display = "block"; }, 2000);
 });
+$("lnkGifts").addEventListener("click", e => { e.preventDefault(); show("giftsScreen"); });
+$("lnkBack").addEventListener("click", e => { e.preventDefault(); show("banner"); });
 </script>
 </body>
 </html>
